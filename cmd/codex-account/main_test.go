@@ -92,3 +92,34 @@ func TestReadKey(t *testing.T) {
 		}
 	}
 }
+
+func TestHomeUsesCurrentAccount(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "state")
+	t.Setenv("CODEX_ACCOUNTS_HOME", root)
+	if err := os.MkdirAll(filepath.Join(root, "accounts", "jin"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "current"), []byte("jin\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	var stdout bytes.Buffer
+	if err := run([]string{"home"}, &stdout, &bytes.Buffer{}); err != nil {
+		t.Fatal(err)
+	}
+	want := filepath.Join(root, "accounts", "jin") + "\n"
+	if stdout.String() != want {
+		t.Fatalf("home output = %q, want %q", stdout.String(), want)
+	}
+}
+
+func TestShellInit(t *testing.T) {
+	var stdout bytes.Buffer
+	if err := run([]string{"shell-init", "zsh"}, &stdout, &bytes.Buffer{}); err != nil {
+		t.Fatal(err)
+	}
+	for _, fragment := range []string{"codex()", "codex-account home", `CODEX_HOME="$account_home"`} {
+		if !strings.Contains(stdout.String(), fragment) {
+			t.Errorf("shell-init output does not contain %q", fragment)
+		}
+	}
+}

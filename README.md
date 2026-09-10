@@ -33,6 +33,30 @@ codex-account run -- exec "run the tests"
 The interactive picker supports arrow keys or `j`/`k`. Press Enter to select
 the highlighted account, or `q` to cancel.
 
+## Use the selected account with plain `codex`
+
+Install the shell integration once by adding this line to `~/.zshrc`:
+
+```sh
+eval "$(codex-account shell-init zsh)"
+```
+
+Then reload the shell:
+
+```sh
+source ~/.zshrc
+```
+
+After that, the normal `codex` command uses the account selected by the picker:
+
+```sh
+codex-account
+codex
+```
+
+The shell wrapper sets `CODEX_HOME` dynamically for each invocation. If no
+account is selected, it falls back to the normal Codex home.
+
 Run another account without changing the current selection:
 
 ```sh

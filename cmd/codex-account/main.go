@@ -66,6 +66,10 @@ func run(args []string, stdout, stderr io.Writer) error {
 		}
 		fmt.Fprintln(stdout, name)
 		return nil
+	case "home":
+		return printHome(store, args[1:], stdout)
+	case "shell-init":
+		return shellInit(args[1:], stdout)
 	case "run":
 		return runCodex(store, args[1:], stdout, stderr)
 	case "delete":
@@ -86,6 +90,8 @@ Usage:
   codex-account list
   codex-account use <name>
   codex-account current
+  codex-account home [name]
+  codex-account shell-init <zsh|bash>
   codex-account run [--account <name>] [-- <codex arguments...>]
   codex-account delete <name> --force
   codex-account doctor
@@ -95,6 +101,51 @@ Environment:
   CODEX_ACCOUNTS_HOME  State directory (default: ~/.codex-accounts)
   CODEX_BINARY         Codex executable (default: codex)
 `)
+}
+
+func printHome(store accounts.Store, args []string, stdout io.Writer) error {
+	if len(args) > 1 {
+		return errors.New("usage: codex-account home [name]")
+	}
+	name := ""
+	if len(args) == 1 {
+		name = args[0]
+	} else {
+		var err error
+		name, err = store.Current()
+		if err != nil {
+			return err
+		}
+	}
+	if name == "" {
+		return errors.New("no current account; run 'codex-account' to select one")
+	}
+	home, err := store.AccountHome(name)
+	if err != nil {
+		return err
+	}
+	if !store.Exists(name) {
+		return fmt.Errorf("account %q does not exist", name)
+	}
+	fmt.Fprintln(stdout, home)
+	return nil
+}
+
+func shellInit(args []string, stdout io.Writer) error {
+	if len(args) != 1 || (args[0] != "zsh" && args[0] != "bash") {
+		return errors.New("usage: codex-account shell-init <zsh|bash>")
+	}
+	fmt.Fprint(stdout, `unalias codex 2>/dev/null || true
+codex() {
+  local account_home
+  if account_home="$(command codex-account home 2>/dev/null)"; then
+    CODEX_HOME="$account_home" command codex "$@"
+  else
+    command codex "$@"
+  fi
+}
+`)
+	return nil
 }
 
 func pickAccount(store accounts.Store, stdout io.Writer) error {
