@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/arihas26/codex-account/internal/accounts"
+	"golang.org/x/term"
 )
 
 var version = "dev"
@@ -24,8 +25,11 @@ func main() {
 
 func run(args []string, stdout, stderr io.Writer) error {
 	if len(args) == 0 {
-		usage(stdout)
-		return nil
+		store, err := accounts.New()
+		if err != nil {
+			return err
+		}
+		return pickAccount(store, stdout)
 	}
 	store, err := accounts.New()
 	if err != nil {
@@ -77,6 +81,7 @@ func usage(w io.Writer) {
 	fmt.Fprint(w, `codex-account manages isolated Codex CLI accounts.
 
 Usage:
+  codex-account                       Interactively select an account
   codex-account login <name> [--device-auth]
   codex-account list
   codex-account use <name>
@@ -90,6 +95,106 @@ Environment:
   CODEX_ACCOUNTS_HOME  State directory (default: ~/.codex-accounts)
   CODEX_BINARY         Codex executable (default: codex)
 `)
+}
+
+func pickAccount(store accounts.Store, stdout io.Writer) error {
+	names, err := store.List()
+	if err != nil {
+		return err
+	}
+	if len(names) == 0 {
+		return errors.New("no accounts; run 'codex-account login <name>'")
+	}
+	if !term.IsTerminal(int(os.Stdin.Fd())) {
+		return errors.New("interactive selection requires a terminal; use 'codex-account use <name>'")
+	}
+
+	selected := 0
+	if current, err := store.Current(); err == nil {
+		for i, name := range names {
+			if name == current {
+				selected = i
+				break
+			}
+		}
+	}
+
+	oldState, err := term.MakeRaw(int(os.Stdin.Fd()))
+	if err != nil {
+		return fmt.Errorf("enable interactive input: %w", err)
+	}
+	defer term.Restore(int(os.Stdin.Fd()), oldState)
+	defer fmt.Fprint(stdout, "\x1b[?25h")
+	fmt.Fprint(stdout, "\x1b[?25l")
+
+	lines := len(names) + 3
+	firstRender := true
+	for {
+		if !firstRender {
+			fmt.Fprintf(stdout, "\x1b[%dA", lines)
+		}
+		firstRender = false
+		fmt.Fprint(stdout, "\r\x1b[2KSelect a Codex account\r\n")
+		for i, name := range names {
+			prefix := "  "
+			if i == selected {
+				prefix = "❯ "
+			}
+			fmt.Fprintf(stdout, "\r\x1b[2K%s%s\r\n", prefix, name)
+		}
+		fmt.Fprint(stdout, "\r\x1b[2K\r\n\r\x1b[2K↑/↓ or j/k: move  Enter: select  q: cancel\r\n")
+
+		key, err := readKey(os.Stdin)
+		if err != nil {
+			return fmt.Errorf("read selection: %w", err)
+		}
+		switch key {
+		case "up", "k":
+			selected = moveSelection(selected, -1, len(names))
+		case "down", "j":
+			selected = moveSelection(selected, 1, len(names))
+		case "enter":
+			if err := store.Use(names[selected]); err != nil {
+				return err
+			}
+			fmt.Fprintf(stdout, "\r\nCurrent account: %s\r\n", names[selected])
+			return nil
+		case "q", "ctrl-c":
+			fmt.Fprint(stdout, "\r\nCancelled.\r\n")
+			return nil
+		}
+	}
+}
+
+func readKey(r io.Reader) (string, error) {
+	buf := make([]byte, 1)
+	if _, err := io.ReadFull(r, buf); err != nil {
+		return "", err
+	}
+	switch buf[0] {
+	case '\r', '\n':
+		return "enter", nil
+	case 3:
+		return "ctrl-c", nil
+	case 27:
+		sequence := make([]byte, 2)
+		if _, err := io.ReadFull(r, sequence); err != nil {
+			return "escape", nil
+		}
+		if sequence[0] == '[' && sequence[1] == 'A' {
+			return "up", nil
+		}
+		if sequence[0] == '[' && sequence[1] == 'B' {
+			return "down", nil
+		}
+		return "escape", nil
+	default:
+		return string(buf), nil
+	}
+}
+
+func moveSelection(current, delta, count int) int {
+	return (current + delta + count) % count
 }
 
 func login(store accounts.Store, args []string, stdout, stderr io.Writer) error {

@@ -52,3 +52,43 @@ func TestSetEnvReplacesValue(t *testing.T) {
 		t.Fatalf("setEnv() = %v", got)
 	}
 }
+
+func TestMoveSelectionWraps(t *testing.T) {
+	tests := []struct {
+		current int
+		delta   int
+		want    int
+	}{
+		{current: 0, delta: -1, want: 2},
+		{current: 2, delta: 1, want: 0},
+		{current: 1, delta: 1, want: 2},
+	}
+	for _, test := range tests {
+		if got := moveSelection(test.current, test.delta, 3); got != test.want {
+			t.Errorf("moveSelection(%d, %d, 3) = %d, want %d", test.current, test.delta, got, test.want)
+		}
+	}
+}
+
+func TestReadKey(t *testing.T) {
+	tests := []struct {
+		input string
+		want  string
+	}{
+		{"\x1b[A", "up"},
+		{"\x1b[B", "down"},
+		{"j", "j"},
+		{"k", "k"},
+		{"\r", "enter"},
+		{"q", "q"},
+	}
+	for _, test := range tests {
+		got, err := readKey(strings.NewReader(test.input))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got != test.want {
+			t.Errorf("readKey(%q) = %q, want %q", test.input, got, test.want)
+		}
+	}
+}

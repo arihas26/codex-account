@@ -24,10 +24,14 @@ Select and run an account:
 
 ```sh
 codex-account list
+codex-account                    # interactive picker
 codex-account use work
 codex-account run
 codex-account run -- exec "run the tests"
 ```
+
+The interactive picker supports arrow keys or `j`/`k`. Press Enter to select
+the highlighted account, or `q` to cancel.
 
 Run another account without changing the current selection:
 
