@@ -92,7 +92,7 @@ Usage:
   codex-account list
   codex-account use <name>
   codex-account current
-  codex-account status [name]
+  codex-account status [name] [--compact]
   codex-account home [name]
   codex-account shell-init <zsh|bash>
   codex-account run [--account <name>] [-- <codex arguments...>]
@@ -107,13 +107,18 @@ Environment:
 }
 
 func status(store accounts.Store, args []string, stdout io.Writer) error {
-	if len(args) > 1 {
-		return errors.New("usage: codex-account status [name]")
-	}
+	compact := false
 	name := ""
-	if len(args) == 1 {
-		name = args[0]
-	} else {
+	for _, arg := range args {
+		if arg == "--compact" {
+			compact = true
+		} else if name == "" {
+			name = arg
+		} else {
+			return errors.New("usage: codex-account status [name] [--compact]")
+		}
+	}
+	if name == "" {
 		var err error
 		name, err = store.Current()
 		if err != nil {
@@ -133,6 +138,14 @@ func status(store accounts.Store, args []string, stdout io.Writer) error {
 	identity, err := store.Identity(name)
 	if err != nil {
 		return err
+	}
+	if compact {
+		if identity.Email != "" {
+			fmt.Fprintf(stdout, "Codex account: %s (%s)\n", name, identity.Email)
+		} else {
+			fmt.Fprintf(stdout, "Codex account: %s\n", name)
+		}
+		return nil
 	}
 	fmt.Fprintf(stdout, "Account: %s\n", name)
 	if identity.Email != "" {
@@ -185,6 +198,7 @@ func shellInit(args []string, stdout io.Writer) error {
 codex() {
   local account_home
   if account_home="$(command codex-account home 2>/dev/null)"; then
+    command codex-account status --compact >&2
     CODEX_HOME="$account_home" command codex "$@"
   else
     command codex "$@"

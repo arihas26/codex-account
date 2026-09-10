@@ -55,6 +55,12 @@ codex-account
 codex
 ```
 
+Each launch prints the selected profile before Codex starts:
+
+```text
+Codex account: work (developer@example.com)
+```
+
 The shell wrapper sets `CODEX_HOME` dynamically for each invocation. If no
 account is selected, it falls back to the normal Codex home.
 

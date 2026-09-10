@@ -148,4 +148,11 @@ func TestStatus(t *testing.T) {
 			t.Errorf("status output does not contain %q: %q", fragment, stdout.String())
 		}
 	}
+	stdout.Reset()
+	if err := run([]string{"status", "--compact"}, &stdout, &bytes.Buffer{}); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := stdout.String(), "Codex account: jin (jin@example.com)\n"; got != want {
+		t.Fatalf("compact status = %q, want %q", got, want)
+	}
 }
