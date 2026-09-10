@@ -61,6 +61,9 @@ Each launch prints the selected profile before Codex starts:
 Codex account: work (developer@example.com)
 ```
 
+The wrapper also configures the Codex status line to show the model, current
+directory, thread name, five-hour usage limit, and weekly usage limit.
+
 The shell wrapper sets `CODEX_HOME` dynamically for each invocation. If no
 account is selected, it falls back to the normal Codex home.
 

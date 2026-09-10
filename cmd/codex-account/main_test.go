@@ -117,7 +117,7 @@ func TestShellInit(t *testing.T) {
 	if err := run([]string{"shell-init", "zsh"}, &stdout, &bytes.Buffer{}); err != nil {
 		t.Fatal(err)
 	}
-	for _, fragment := range []string{"codex()", "codex-account home", `CODEX_HOME="$account_home"`} {
+	for _, fragment := range []string{"codex()", "codex-account home", `CODEX_HOME="$account_home"`, "five-hour-limit", "weekly-limit"} {
 		if !strings.Contains(stdout.String(), fragment) {
 			t.Errorf("shell-init output does not contain %q", fragment)
 		}

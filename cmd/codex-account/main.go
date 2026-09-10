@@ -16,6 +16,8 @@ import (
 
 var version = "dev"
 
+const statusLineConfig = `tui.status_line=["model-with-reasoning","current-dir","thread-name","five-hour-limit","weekly-limit"]`
+
 func main() {
 	if err := run(os.Args[1:], os.Stdout, os.Stderr); err != nil {
 		fmt.Fprintln(os.Stderr, "error:", err)
@@ -199,7 +201,7 @@ codex() {
   local account_home
   if account_home="$(command codex-account home 2>/dev/null)"; then
     command codex-account status --compact >&2
-    CODEX_HOME="$account_home" command codex "$@"
+    CODEX_HOME="$account_home" command codex -c '`+statusLineConfig+`' "$@"
   else
     command codex "$@"
   fi
@@ -383,7 +385,7 @@ func runCodex(store accounts.Store, args []string, stdout, stderr io.Writer) err
 	if !store.Exists(name) {
 		return fmt.Errorf("account %q does not exist", name)
 	}
-	return executeCodex(home, args, stdout, stderr)
+	return executeCodex(home, append([]string{"-c", statusLineConfig}, args...), stdout, stderr)
 }
 
 func executeCodex(home string, args []string, stdout, stderr io.Writer) error {
