@@ -1,6 +1,8 @@
 package accounts
 
 import (
+	"encoding/base64"
+	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -43,6 +45,40 @@ func TestValidateName(t *testing.T) {
 		if ValidateName(name) == nil {
 			t.Errorf("ValidateName(%q) unexpectedly succeeded", name)
 		}
+	}
+}
+
+func TestIdentity(t *testing.T) {
+	s := Store{Root: filepath.Join(t.TempDir(), "state")}
+	home, err := s.Create("work")
+	if err != nil {
+		t.Fatal(err)
+	}
+	payload := base64.RawURLEncoding.EncodeToString([]byte(`{"email":"dev@example.com"}`))
+	auth := fmt.Sprintf(`{"tokens":{"id_token":"header.%s.signature"}}`, payload)
+	if err := os.WriteFile(filepath.Join(home, "auth.json"), []byte(auth), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	identity, err := s.Identity("work")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !identity.LoggedIn || identity.Email != "dev@example.com" {
+		t.Fatalf("Identity() = %+v", identity)
+	}
+}
+
+func TestIdentityWithoutAuth(t *testing.T) {
+	s := Store{Root: filepath.Join(t.TempDir(), "state")}
+	if _, err := s.Create("work"); err != nil {
+		t.Fatal(err)
+	}
+	identity, err := s.Identity("work")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if identity.LoggedIn {
+		t.Fatalf("Identity() = %+v, want logged out", identity)
 	}
 }
 

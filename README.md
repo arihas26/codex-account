@@ -25,6 +25,7 @@ Select and run an account:
 ```sh
 codex-account list
 codex-account                    # interactive picker
+codex-account status             # selected account and login email
 codex-account use work
 codex-account run
 codex-account run -- exec "run the tests"

@@ -123,3 +123,29 @@ func TestShellInit(t *testing.T) {
 		}
 	}
 }
+
+func TestStatus(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "state")
+	t.Setenv("CODEX_ACCOUNTS_HOME", root)
+	home := filepath.Join(root, "accounts", "jin")
+	if err := os.MkdirAll(home, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	payload := "eyJlbWFpbCI6ImppbkBleGFtcGxlLmNvbSJ9"
+	auth := `{"tokens":{"id_token":"header.` + payload + `.signature"}}`
+	if err := os.WriteFile(filepath.Join(home, "auth.json"), []byte(auth), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "current"), []byte("jin\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	var stdout bytes.Buffer
+	if err := run([]string{"status"}, &stdout, &bytes.Buffer{}); err != nil {
+		t.Fatal(err)
+	}
+	for _, fragment := range []string{"Account: jin", "Email: jin@example.com", "Authentication: logged in", home} {
+		if !strings.Contains(stdout.String(), fragment) {
+			t.Errorf("status output does not contain %q: %q", fragment, stdout.String())
+		}
+	}
+}

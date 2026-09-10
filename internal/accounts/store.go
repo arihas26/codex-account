@@ -1,6 +1,8 @@
 package accounts
 
 import (
+	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -16,6 +18,11 @@ var validName = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]*$`)
 
 type Store struct {
 	Root string
+}
+
+type Identity struct {
+	LoggedIn bool
+	Email    string
 }
 
 func New() (Store, error) {
@@ -143,4 +150,41 @@ func (s Store) Use(name string) error {
 		return fmt.Errorf("select account: %w", err)
 	}
 	return nil
+}
+
+func (s Store) Identity(name string) (Identity, error) {
+	home, err := s.AccountHome(name)
+	if err != nil {
+		return Identity{}, err
+	}
+	data, err := os.ReadFile(filepath.Join(home, "auth.json"))
+	if errors.Is(err, os.ErrNotExist) {
+		return Identity{}, nil
+	}
+	if err != nil {
+		return Identity{}, fmt.Errorf("read account authentication: %w", err)
+	}
+	var auth struct {
+		Tokens struct {
+			IDToken string `json:"id_token"`
+		} `json:"tokens"`
+	}
+	if err := json.Unmarshal(data, &auth); err != nil {
+		return Identity{LoggedIn: true}, nil
+	}
+	parts := strings.Split(auth.Tokens.IDToken, ".")
+	if len(parts) != 3 {
+		return Identity{LoggedIn: true}, nil
+	}
+	payload, err := base64.RawURLEncoding.DecodeString(parts[1])
+	if err != nil {
+		return Identity{LoggedIn: true}, nil
+	}
+	var claims struct {
+		Email string `json:"email"`
+	}
+	if err := json.Unmarshal(payload, &claims); err != nil {
+		return Identity{LoggedIn: true}, nil
+	}
+	return Identity{LoggedIn: true, Email: claims.Email}, nil
 }

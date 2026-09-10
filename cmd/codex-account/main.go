@@ -66,6 +66,8 @@ func run(args []string, stdout, stderr io.Writer) error {
 		}
 		fmt.Fprintln(stdout, name)
 		return nil
+	case "status":
+		return status(store, args[1:], stdout)
 	case "home":
 		return printHome(store, args[1:], stdout)
 	case "shell-init":
@@ -90,6 +92,7 @@ Usage:
   codex-account list
   codex-account use <name>
   codex-account current
+  codex-account status [name]
   codex-account home [name]
   codex-account shell-init <zsh|bash>
   codex-account run [--account <name>] [-- <codex arguments...>]
@@ -101,6 +104,49 @@ Environment:
   CODEX_ACCOUNTS_HOME  State directory (default: ~/.codex-accounts)
   CODEX_BINARY         Codex executable (default: codex)
 `)
+}
+
+func status(store accounts.Store, args []string, stdout io.Writer) error {
+	if len(args) > 1 {
+		return errors.New("usage: codex-account status [name]")
+	}
+	name := ""
+	if len(args) == 1 {
+		name = args[0]
+	} else {
+		var err error
+		name, err = store.Current()
+		if err != nil {
+			return err
+		}
+	}
+	if name == "" {
+		return errors.New("no current account; run 'codex-account' to select one")
+	}
+	home, err := store.AccountHome(name)
+	if err != nil {
+		return err
+	}
+	if !store.Exists(name) {
+		return fmt.Errorf("account %q does not exist", name)
+	}
+	identity, err := store.Identity(name)
+	if err != nil {
+		return err
+	}
+	fmt.Fprintf(stdout, "Account: %s\n", name)
+	if identity.Email != "" {
+		fmt.Fprintf(stdout, "Email: %s\n", identity.Email)
+	} else {
+		fmt.Fprintln(stdout, "Email: unavailable")
+	}
+	state := "not logged in"
+	if identity.LoggedIn {
+		state = "logged in"
+	}
+	fmt.Fprintf(stdout, "Authentication: %s\n", state)
+	fmt.Fprintf(stdout, "Codex home: %s\n", home)
+	return nil
 }
 
 func printHome(store accounts.Store, args []string, stdout io.Writer) error {
